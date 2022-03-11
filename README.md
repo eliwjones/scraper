@@ -3,7 +3,6 @@ Quickstart
 
 ```
 import scraper
-from time import sleep
 
 download_path = f"/tmp/chrome_download/"
 
