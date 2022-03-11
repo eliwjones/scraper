@@ -11,7 +11,7 @@ from splinter import Browser as SplinterBrowser
 
 def Browser(work_dir='/tmp', download_path='/tmp', headless=False, verify=True):
     if verify:
-        verify_chromedriver()
+        verify_chromedriver(work_dir=work_dir)
 
     chrome_options, extra_args = get_chrome_options_and_extra_args(work_dir=work_dir, download_path=download_path)
     user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36'
@@ -103,26 +103,36 @@ def get_chrome_options_and_extra_args(work_dir, download_path='/tmp'):
     return chrome_options, extra_args
 
 
-def patient_action(browser, identifier, find_by='find_by_id', action='click', extra_data=''):
+def patient(func, retry_interval=2, max_retries=5, exception=None):
     from selenium.common.exceptions import ElementNotInteractableException
+    from splinter.exceptions import ElementDoesNotExist
+
+    if not exception:
+        exceptions = (ElementNotInteractableException, ElementDoesNotExist)
+    else:
+        exceptions = (ElementNotInteractableException, ElementDoesNotExist, exception)
+
+    exception = None
+    result = None
 
     successful = False
     retries = 0
     while not successful:
-        if retries > 5:
-            raise Exception(f"[patient_action] failed to {find_by}('{identifier}').{action}({extra_data})")
+        if retries == max_retries:
+            print('[scraper.patient] permanently failed.  Raising exception.')
+            raise exception
 
         try:
-            if extra_data:
-                getattr(getattr(browser, find_by)(identifier), action)(extra_data)
-            else:
-                getattr(getattr(browser, find_by)(identifier), action)()
-
+            result = func()
             successful = True
-        except ElementNotInteractableException:
-            print(f"[patient_action] failed to {find_by}('{identifier}').{action}({extra_data})")
-            sleep(2)
+        except exceptions as e:
+            print(f"[scraper.patient] failed. Exception: {e}")
+            exception = e
+
+            sleep(retry_interval)
             retries += 1
+
+    return result
 
 
 def verify_chromedriver(work_dir, install=True):
